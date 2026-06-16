@@ -1,0 +1,28 @@
+# Environment variables (contains Twilio API keys)
+.env
+
+# SQLite database
+attendance.db
+*.db
+*.sqlite3
+
+# Python virtual environment
+venv/
+ENV/
+env/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE config files
+.vscode/
+.idea/
+.project
+.pydevproject
+
+# System files
+.DS_Store
+Thumbs.db

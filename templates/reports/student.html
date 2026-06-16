@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name }} — Report{% endblock %}
+
+{% block content %}
+<!-- Student Profile Card -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-4">
+    <div class="card card-glass text-center py-4">
+      <div class="student-avatar-lg mx-auto mb-3">{{ student.name[0] | upper }}</div>
+      <h5 class="fw-bold mb-1">{{ student.name }}</h5>
+      <p class="text-muted small mb-2">{{ student.student_id }}</p>
+      <span class="badge bg-primary mb-3">{{ student.department }}</span>
+      <div class="student-meta">
+        <div class="meta-item">
+          <i class="bi bi-calendar3 text-primary"></i>
+          <span>Semester {{ student.semester }}</span>
+        </div>
+        <div class="meta-item">
+          <i class="bi bi-person-fill text-success"></i>
+          <span>{{ student.parent_name }}</span>
+        </div>
+        <div class="meta-item">
+          <i class="bi bi-telephone-fill text-info"></i>
+          <span class="font-monospace">{{ student.parent_phone }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <!-- Attendance Stats -->
+    <div class="row g-3 mb-4">
+      <div class="col-sm-4">
+        <div class="kpi-card kpi-primary">
+          <div class="kpi-icon"><i class="bi bi-clipboard-data-fill"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ records | length }}</div>
+            <div class="kpi-label">Total Classes</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="kpi-card kpi-success">
+          <div class="kpi-icon"><i class="bi bi-person-check-fill"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ present }}</div>
+            <div class="kpi-label">Present</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="kpi-card kpi-danger">
+          <div class="kpi-icon"><i class="bi bi-person-x-fill"></i></div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ absent }}</div>
+            <div class="kpi-label">Absent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance Percentage -->
+    <div class="card card-glass">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="fw-medium">Overall Attendance</span>
+          <span class="fw-bold fs-5 {% if percentage >= 75 %}text-success{% elif percentage >= 60 %}text-warning{% else %}text-danger{% endif %}">
+            {{ percentage }}%
+          </span>
+        </div>
+        <div class="progress" style="height: 12px; border-radius: 6px;">
+          <div class="progress-bar {% if percentage >= 75 %}bg-success{% elif percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+               role="progressbar" style="width: {{ percentage }}%" aria-valuenow="{{ percentage }}"
+               aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1">
+          <small class="text-muted">0%</small>
+          <small class="text-warning">75% (Min Required)</small>
+          <small class="text-muted">100%</small>
+        </div>
+        {% if percentage < 75 %}
+        <div class="alert alert-danger mt-3 mb-0 py-2 small">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          Attendance below 75%! Student needs {{ [0, (((75 * (records | length) / 100) | int) - present)] | max }} more classes to meet the requirement.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance History -->
+<div class="card card-glass mb-4">
+  <div class="card-header">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-clock-history me-2 text-primary"></i>Attendance History
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if records %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 data-table">
+        <thead class="table-head-sm">
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          <tr class="{{ 'row-absent' if r.status == AttendanceStatus.ABSENT else '' }}">
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td>{{ r.date.strftime('%d %b %Y') }}</td>
+            <td>{{ r.subject }}</td>
+            <td>
+              {% if r.status == AttendanceStatus.PRESENT %}
+                <span class="status-badge status-present"><i class="bi bi-check-circle-fill me-1"></i>Present</span>
+              {% else %}
+                <span class="status-badge status-absent"><i class="bi bi-x-circle-fill me-1"></i>Absent</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state py-4">
+        <i class="bi bi-calendar-x"></i>
+        <p>No attendance records for this student.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- SMS History -->
+<div class="card card-glass">
+  <div class="card-header">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-chat-dots-fill me-2 text-info"></i>SMS Alerts Sent
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if sms_records %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-head-sm">
+          <tr>
+            <th>Sent At</th>
+            <th>Message Preview</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sms in sms_records %}
+          <tr>
+            <td class="text-muted small">{{ sms.sent_time.strftime('%d %b %Y %H:%M') }}</td>
+            <td class="small text-muted">{{ sms.message[:100] }}…</td>
+            <td>
+              {% if sms.delivery_status.value == 'Sent' %}
+                <span class="status-badge status-present"><i class="bi bi-check-circle-fill me-1"></i>Sent</span>
+              {% else %}
+                <span class="status-badge status-absent"><i class="bi bi-x-circle-fill me-1"></i>{{ sms.delivery_status.value }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state py-4">
+        <i class="bi bi-chat-square-dots"></i>
+        <p>No SMS alerts sent for this student.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

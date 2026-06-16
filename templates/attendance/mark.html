@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Mark Attendance{% endblock %}
+
+{% block content %}
+<!-- Step 1: Subject & Date Selector -->
+<div class="card card-glass mb-4">
+  <div class="card-header">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-1-circle-fill me-2 text-primary"></i>
+      Select Subject & Date
+    </h6>
+  </div>
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('attendance.mark') }}" id="selectorForm">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label required">Subject</label>
+          <select class="form-select" name="subject" id="subjectSelect" required>
+            <option value="">— Select Subject —</option>
+            {% for s in subjects %}
+              <option value="{{ s }}" {% if selected_subject == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label required">Date</label>
+          <input type="date" class="form-control" name="date"
+                 value="{{ selected_date.strftime('%Y-%m-%d') }}"
+                 max="{{ selected_date.strftime('%Y-%m-%d') }}" id="dateInput" />
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-arrow-right-circle me-1"></i>Load Students
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if selected_subject and students %}
+<!-- Step 2: Mark Attendance -->
+<div class="card card-glass">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-2-circle-fill me-2 text-success"></i>
+      Mark Attendance —
+      <strong>{{ selected_subject }}</strong>
+      <span class="text-muted ms-1">/ {{ selected_date.strftime('%d %B %Y') }}</span>
+    </h6>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-success" id="markAllPresent">
+        <i class="bi bi-check-all me-1"></i>All Present
+      </button>
+      <button type="button" class="btn btn-sm btn-danger" id="markAllAbsent">
+        <i class="bi bi-x-circle me-1"></i>All Absent
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary badges -->
+  <div class="card-body pb-2 border-bottom">
+    <div class="d-flex gap-3">
+      <span class="badge bg-success-subtle text-success border border-success p-2">
+        <i class="bi bi-person-check me-1"></i>
+        <span id="presentCount">0</span> Present
+      </span>
+      <span class="badge bg-danger-subtle text-danger border border-danger p-2">
+        <i class="bi bi-person-x me-1"></i>
+        <span id="absentCount">0</span> Absent
+      </span>
+      <span class="badge bg-secondary-subtle text-secondary border p-2">
+        <i class="bi bi-people me-1"></i>{{ students | length }} Total
+      </span>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('attendance.mark') }}" id="attendanceForm">
+    {{ form.hidden_tag() }}
+    <input type="hidden" name="subject" value="{{ selected_subject }}">
+    <input type="hidden" name="attendance_date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-head-sm">
+          <tr>
+            <th>#</th>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Sem</th>
+            <th class="text-center" style="min-width:200px">Attendance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+          {% set current_status = existing_map.get(student.id, AttendanceStatus.PRESENT) %}
+          <tr class="attendance-row" data-status="{{ current_status.value }}">
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td><span class="badge bg-secondary font-monospace">{{ student.student_id }}</span></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm">{{ student.name[0] | upper }}</div>
+                <span class="fw-medium">{{ student.name }}</span>
+              </div>
+            </td>
+            <td class="text-muted small">{{ student.department }}</td>
+            <td><span class="badge bg-primary-subtle text-primary">{{ student.semester }}</span></td>
+            <td class="text-center">
+              <div class="attendance-toggle" id="toggle_{{ student.id }}">
+                <input type="radio" class="btn-check attend-radio" name="status_{{ student.id }}"
+                       id="present_{{ student.id }}" value="Present" autocomplete="off"
+                       {% if current_status.value == 'Present' %}checked{% endif %}>
+                <label class="btn btn-sm btn-outline-success attend-btn" for="present_{{ student.id }}">
+                  <i class="bi bi-check-circle me-1"></i>Present
+                </label>
+
+                <input type="radio" class="btn-check attend-radio" name="status_{{ student.id }}"
+                       id="absent_{{ student.id }}" value="Absent" autocomplete="off"
+                       {% if current_status.value == 'Absent' %}checked{% endif %}>
+                <label class="btn btn-sm btn-outline-danger attend-btn" for="absent_{{ student.id }}">
+                  <i class="bi bi-x-circle me-1"></i>Absent
+                </label>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer d-flex align-items-center justify-content-between">
+      <p class="text-muted small mb-0">
+        <i class="bi bi-info-circle me-1 text-info"></i>
+        Absent students will automatically receive an SMS alert.
+      </p>
+      <button type="submit" class="btn btn-primary px-4" id="saveBtn">
+        <i class="bi bi-save-fill me-2"></i>Save Attendance & Send SMS
+      </button>
+    </div>
+  </form>
+</div>
+
+{% elif selected_subject and not students %}
+<div class="card card-glass">
+  <div class="empty-state py-5">
+    <i class="bi bi-people"></i>
+    <p>No students found in the system. <a href="{{ url_for('students.add_student') }}">Add students first</a>.</p>
+  </div>
+</div>
+
+{% elif not selected_subject %}
+<div class="card card-glass">
+  <div class="empty-state py-5">
+    <i class="bi bi-calendar-check"></i>
+    <p>Select a subject and date above to load the student list.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live present/absent counters
+function updateCounts() {
+  let present = 0, absent = 0;
+  document.querySelectorAll('.attend-radio:checked').forEach(radio => {
+    if (radio.value === 'Present') present++;
+    else absent++;
+  });
+  const presentEl = document.getElementById('presentCount');
+  const absentEl = document.getElementById('absentCount');
+  if (presentEl) presentEl.textContent = present;
+  if (absentEl) absentEl.textContent = absent;
+
+  // Row colouring
+  document.querySelectorAll('.attendance-row').forEach(row => {
+    const id = row.querySelector('.attend-radio').name.replace('status_', '');
+    const presentChecked = document.getElementById('present_' + id)?.checked;
+    row.classList.toggle('row-present', !!presentChecked);
+    row.classList.toggle('row-absent', !presentChecked);
+  });
+}
+
+document.querySelectorAll('.attend-radio').forEach(r => r.addEventListener('change', updateCounts));
+updateCounts();
+
+// Bulk set
+document.getElementById('markAllPresent')?.addEventListener('click', () => {
+  document.querySelectorAll('[id^="present_"]').forEach(r => { r.checked = true; });
+  updateCounts();
+});
+document.getElementById('markAllAbsent')?.addEventListener('click', () => {
+  document.querySelectorAll('[id^="absent_"]').forEach(r => { r.checked = true; });
+  updateCounts();
+});
+
+// Loading state
+document.getElementById('attendanceForm')?.addEventListener('submit', () => {
+  const btn = document.getElementById('saveBtn');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

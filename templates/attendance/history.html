@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Attendance History{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card card-glass mb-4">
+  <div class="card-body">
+    <form method="GET" id="filterForm">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Subject</label>
+          <select class="form-select" name="subject" id="subjectFilter">
+            <option value="">All Subjects</option>
+            {% for s in subjects %}
+              <option value="{{ s }}" {% if subject_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control" name="date"
+                 value="{{ date_filter }}" id="dateFilter" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Student</label>
+          <input type="text" class="form-control" name="student_id"
+                 value="{{ student_filter }}" placeholder="Name or ID…" id="studentFilter" />
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill">
+            <i class="bi bi-funnel me-1"></i>Filter
+          </button>
+          <a href="{{ url_for('attendance.history') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i>
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Results -->
+<div class="card card-glass">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-clock-history me-2 text-primary"></i>
+      {{ records.total }} Record{{ 's' if records.total != 1 }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if records.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-head-sm">
+          <tr>
+            <th>Date</th>
+            <th>Student</th>
+            <th>Department</th>
+            <th>Semester</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for att, stu in records.items %}
+          <tr class="{{ 'row-absent' if att.status == AttendanceStatus.ABSENT else 'row-present' }}">
+            <td>
+              <span class="text-muted small">{{ att.date.strftime('%d %b %Y') }}</span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm">{{ stu.name[0] | upper }}</div>
+                <div>
+                  <div class="fw-medium">{{ stu.name }}</div>
+                  <div class="text-muted small font-monospace">{{ stu.student_id }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="text-muted small">{{ stu.department }}</td>
+            <td><span class="badge bg-primary-subtle text-primary">Sem {{ stu.semester }}</span></td>
+            <td>{{ att.subject }}</td>
+            <td>
+              {% if att.status == AttendanceStatus.PRESENT %}
+                <span class="status-badge status-present">
+                  <i class="bi bi-check-circle-fill me-1"></i>Present
+                </span>
+              {% else %}
+                <span class="status-badge status-absent">
+                  <i class="bi bi-x-circle-fill me-1"></i>Absent
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('reports.student_report', student_id=stu.id) }}"
+                 class="btn btn-xs btn-outline-info" title="Student Report">
+                <i class="bi bi-bar-chart"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if records.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">Page {{ records.page }} of {{ records.pages }}</small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if records.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('attendance.history', page=records.prev_num,
+               subject=subject_filter, date=date_filter, student_id=student_filter) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for p in records.iter_pages() %}
+            {% if p %}
+              <li class="page-item {% if p == records.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('attendance.history', page=p,
+                   subject=subject_filter, date=date_filter, student_id=student_filter) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if records.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('attendance.history', page=records.next_num,
+               subject=subject_filter, date=date_filter, student_id=student_filter) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state py-5">
+        <i class="bi bi-calendar-x"></i>
+        <p>No attendance records found for the selected filters.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

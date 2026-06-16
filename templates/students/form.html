@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card card-glass">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-person-{% if action == 'add' %}plus{% else %}pencil{% endif %}-fill me-2 text-primary"></i>
+          {{ title }}
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="POST"
+              action="{{ url_for('students.edit_student', student_id=student.id) if action == 'edit' else url_for('students.add_student') }}"
+              novalidate id="studentForm">
+          {{ form.hidden_tag() }}
+
+          <div class="row g-3">
+            <!-- Student ID -->
+            <div class="col-md-6">
+              <label class="form-label required">Student ID / Roll No.</label>
+              {{ form.student_id(class="form-control" + (" is-invalid" if form.student_id.errors else ""),
+                 placeholder="e.g. CS2024001", id="student_id") }}
+              {% if form.student_id.errors %}
+                <div class="invalid-feedback">{{ form.student_id.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Full Name -->
+            <div class="col-md-6">
+              <label class="form-label required">Full Name</label>
+              {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""),
+                 placeholder="Student full name", id="name") }}
+              {% if form.name.errors %}
+                <div class="invalid-feedback">{{ form.name.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Department -->
+            <div class="col-md-6">
+              <label class="form-label required">Department</label>
+              {{ form.department(class="form-select" + (" is-invalid" if form.department.errors else ""),
+                 id="department") }}
+              {% if form.department.errors %}
+                <div class="invalid-feedback">{{ form.department.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Semester -->
+            <div class="col-md-6">
+              <label class="form-label required">Semester</label>
+              {{ form.semester(class="form-control" + (" is-invalid" if form.semester.errors else ""),
+                 placeholder="1–12", id="semester", min=1, max=12) }}
+              {% if form.semester.errors %}
+                <div class="invalid-feedback">{{ form.semester.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-12"><hr class="divider" /></div>
+
+            <!-- Parent Name -->
+            <div class="col-md-6">
+              <label class="form-label required">Parent / Guardian Name</label>
+              {{ form.parent_name(class="form-control" + (" is-invalid" if form.parent_name.errors else ""),
+                 placeholder="Parent full name", id="parent_name") }}
+              {% if form.parent_name.errors %}
+                <div class="invalid-feedback">{{ form.parent_name.errors[0] }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Parent Phone -->
+            <div class="col-md-6">
+              <label class="form-label required">Parent Phone</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-telephone-fill text-success"></i></span>
+                {{ form.parent_phone(class="form-control" + (" is-invalid" if form.parent_phone.errors else ""),
+                   placeholder="+91XXXXXXXXXX", id="parent_phone") }}
+                {% if form.parent_phone.errors %}
+                  <div class="invalid-feedback">{{ form.parent_phone.errors[0] }}</div>
+                {% endif %}
+              </div>
+              <div class="form-text">Include country code, e.g. +91 for India, +1 for USA</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-3 mt-4">
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-{% if action == 'add' %}plus-circle{% else %}check-circle{% endif %}-fill me-2"></i>
+              {{ 'Add Student' if action == 'add' else 'Save Changes' }}
+            </button>
+            <a href="{{ url_for('students.list_students') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i>Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <p class="text-muted mb-0">Manage all registered students</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+      <i class="bi bi-file-earmark-arrow-up-fill me-2"></i>Import CSV
+    </button>
+    <a href="{{ url_for('students.add_student') }}" class="btn btn-primary">
+      <i class="bi bi-person-plus-fill me-2"></i>Add Student
+    </a>
+  </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="card card-glass mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end" id="searchForm">
+      <div class="col-md-5">
+        <label class="form-label">Search</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" name="q" value="{{ query }}"
+                 placeholder="Name or Student ID…" id="searchInput">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Department</label>
+        <select class="form-select" name="dept" id="deptFilter">
+          <option value="">All Departments</option>
+          {% for d in departments %}
+            <option value="{{ d }}" {% if dept_filter == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('students.list_students') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-x-circle"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Students Table -->
+<div class="card card-glass">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-people-fill me-2 text-primary"></i>
+      {{ students.total }} Student{{ 's' if students.total != 1 }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if students.items %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-head-sm">
+          <tr>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Sem</th>
+            <th>Parent</th>
+            <th>Parent Phone</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students.items %}
+          <tr>
+            <td><span class="badge bg-secondary font-monospace">{{ student.student_id }}</span></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm">{{ student.name[0] | upper }}</div>
+                <span class="fw-medium">{{ student.name }}</span>
+              </div>
+            </td>
+            <td><span class="text-muted small">{{ student.department }}</span></td>
+            <td><span class="badge bg-primary-subtle text-primary">Sem {{ student.semester }}</span></td>
+            <td><span class="text-muted small">{{ student.parent_name }}</span></td>
+            <td>
+              <span class="text-muted small font-monospace">
+                <i class="bi bi-telephone-fill me-1 text-success"></i>{{ student.parent_phone }}
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('reports.student_report', student_id=student.id) }}"
+                   class="btn btn-outline-info" title="View Report">
+                  <i class="bi bi-bar-chart-fill"></i>
+                </a>
+                <a href="{{ url_for('students.edit_student', student_id=student.id) }}"
+                   class="btn btn-outline-primary" title="Edit">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+                {% if current_user.is_admin %}
+                <button type="button" class="btn btn-outline-danger"
+                        title="Delete"
+                        onclick="confirmDelete('{{ student.name }}', '{{ url_for('students.delete_student', student_id=student.id) }}')">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if students.pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <small class="text-muted">
+        Showing {{ ((students.page - 1) * students.per_page) + 1 }}–
+        {{ [students.page * students.per_page, students.total] | min }}
+        of {{ students.total }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if students.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('students.list_students', page=students.prev_num, q=query, dept=dept_filter) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for p in students.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == students.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('students.list_students', page=p, q=query, dept=dept_filter) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if students.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('students.list_students', page=students.next_num, q=query, dept=dept_filter) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+      <div class="empty-state py-5">
+        <i class="bi bi-people"></i>
+        <p>No students found. <a href="{{ url_for('students.add_student') }}">Add the first one</a>.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-glass">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Confirm Delete</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="deleteStudentName"></strong>?</p>
+        <p class="text-muted small mb-0">This will permanently remove all attendance records and SMS logs for this student.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Delete
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-glass">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up-fill text-primary me-2"></i>Import Students (CSV)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('students.import_students') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Upload a CSV spreadsheet to import your students in bulk. 
+            All headers must match the template exactly.
+          </p>
+          
+          <div class="mb-4">
+            <a href="{{ url_for('students.import_template') }}" class="btn btn-sm btn-outline-info w-100">
+              <i class="bi bi-download me-2"></i>Download Sample CSV Template
+            </a>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small">Select CSV File</label>
+            <input type="file" class="form-control" name="file" accept=".csv" required>
+          </div>
+
+          <div class="card bg-dark bg-opacity-25 border-0 p-3 mt-3">
+            <h6 class="text-info small mb-2"><i class="bi bi-info-circle me-1"></i>Requirements:</h6>
+            <ul class="text-muted small mb-0 ps-3">
+              <li>Columns: <code>student_id, name, department, semester, parent_name, parent_phone</code></li>
+              <li>Semester: number between 1 and 12</li>
+              <li>Department: must match predefined list (e.g. <i>Computer Science</i>, <i>Information Technology</i>)</li>
+              <li>Phone: include country code (e.g. <code>+91XXXXXXXXXX</code>)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Upload & Import
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(name, url) {
+  document.getElementById('deleteStudentName').textContent = name;
+  document.getElementById('deleteForm').action = url;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Daily Report{% endblock %}
+
+{% block content %}
+<!-- Date picker -->
+<div class="card card-glass mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Report Date</label>
+        <input type="date" class="form-control" name="date"
+               value="{{ report_date.strftime('%Y-%m-%d') }}" id="reportDate" />
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-search me-1"></i>View
+        </button>
+      </div>
+      <div class="col-md-6 d-flex gap-2 justify-content-end align-items-end">
+        <a href="{{ url_for('reports.export_excel', date=report_date.strftime('%Y-%m-%d')) }}"
+           class="btn btn-success">
+          <i class="bi bi-file-earmark-excel-fill me-1"></i>Export Excel
+        </a>
+        <a href="{{ url_for('reports.export_pdf', date=report_date.strftime('%Y-%m-%d')) }}"
+           class="btn btn-danger">
+          <i class="bi bi-file-earmark-pdf-fill me-1"></i>Export PDF
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Summary badges -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="kpi-card kpi-primary">
+      <div class="kpi-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ records | length }}</div>
+        <div class="kpi-label">Total Records</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="kpi-card kpi-success">
+      <div class="kpi-icon"><i class="bi bi-person-check-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ present_count }}</div>
+        <div class="kpi-label">Present</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="kpi-card kpi-danger">
+      <div class="kpi-icon"><i class="bi bi-person-x-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ absent_count }}</div>
+        <div class="kpi-label">Absent</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card card-glass">
+  <div class="card-header">
+    <h6 class="card-title mb-0">
+      <i class="bi bi-file-earmark-bar-graph-fill me-2 text-primary"></i>
+      Attendance for {{ report_date.strftime('%A, %d %B %Y') }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if records %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 data-table">
+        <thead class="table-head-sm">
+          <tr>
+            <th>#</th>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Semester</th>
+            <th>Subject</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for att, stu in records %}
+          <tr>
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td><span class="badge bg-secondary font-monospace">{{ stu.student_id }}</span></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm">{{ stu.name[0] | upper }}</div>
+                <a href="{{ url_for('reports.student_report', student_id=stu.id) }}" class="fw-medium text-decoration-none">
+                  {{ stu.name }}
+                </a>
+              </div>
+            </td>
+            <td class="text-muted small">{{ stu.department }}</td>
+            <td><span class="badge bg-primary-subtle text-primary">Sem {{ stu.semester }}</span></td>
+            <td>{{ att.subject }}</td>
+            <td>
+              {% if att.status == AttendanceStatus.PRESENT %}
+                <span class="status-badge status-present"><i class="bi bi-check-circle-fill me-1"></i>Present</span>
+              {% else %}
+                <span class="status-badge status-absent"><i class="bi bi-x-circle-fill me-1"></i>Absent</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state py-5">
+        <i class="bi bi-calendar-x"></i>
+        <p>No attendance records for {{ report_date.strftime('%d %B %Y') }}.</p>
+        <a href="{{ url_for('attendance.mark') }}" class="btn btn-primary mt-2">Mark Attendance</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

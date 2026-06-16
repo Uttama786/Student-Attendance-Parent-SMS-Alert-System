@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Faculty Management{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Add Faculty Form -->
+  <div class="col-lg-4">
+    <div class="card card-glass">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-person-plus-fill me-2 text-success"></i>Add Faculty
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('reports.add_faculty') }}" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            <label class="form-label required">Full Name</label>
+            {{ form.name(class="form-control", placeholder="Dr. John Smith") }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Username</label>
+            {{ form.username(class="form-control", placeholder="jsmith") }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            {{ form.role(class="form-select") }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Password</label>
+            {{ form.password(class="form-control", placeholder="Min. 6 characters") }}
+          </div>
+          <div class="mb-4">
+            <label class="form-label required">Confirm Password</label>
+            {{ form.confirm(class="form-control", placeholder="Repeat password") }}
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-person-plus me-1"></i>Create Account
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Faculty List -->
+  <div class="col-lg-8">
+    <div class="card card-glass">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-person-badge-fill me-2 text-primary"></i>
+          {{ faculty | length }} Faculty Account{{ 's' if faculty | length != 1 }}
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-head-sm">
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in faculty %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="avatar-sm">{{ f.name[0] | upper }}</div>
+                    <span class="fw-medium">{{ f.name }}</span>
+                    {% if f.id == current_user.id %}
+                      <span class="badge bg-info text-dark">You</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="font-monospace small text-muted">{{ f.username }}</td>
+                <td>
+                  <span class="badge {% if f.role == 'admin' %}bg-danger{% else %}bg-primary{% endif %}">
+                    {{ f.role | capitalize }}
+                  </span>
+                </td>
+                <td class="text-muted small">{{ f.created_at.strftime('%d %b %Y') }}</td>
+                <td class="text-end">
+                  {% if f.id != current_user.id %}
+                  <form method="POST" action="{{ url_for('reports.delete_faculty', fid=f.id) }}"
+                        onsubmit="return confirm('Delete {{ f.name }}?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </form>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

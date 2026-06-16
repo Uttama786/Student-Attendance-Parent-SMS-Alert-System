@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- ── KPI Cards ─────────────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-primary">
+      <div class="kpi-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ total_students }}</div>
+        <div class="kpi-label">Total Students</div>
+      </div>
+      <a href="{{ url_for('students.list_students') }}" class="kpi-link">View all <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-success">
+      <div class="kpi-icon"><i class="bi bi-person-check-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ present_today }}</div>
+        <div class="kpi-label">Present Today</div>
+      </div>
+      <a href="{{ url_for('attendance.history') }}" class="kpi-link">History <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-danger">
+      <div class="kpi-icon"><i class="bi bi-person-x-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ absent_today }}</div>
+        <div class="kpi-label">Absent Today</div>
+      </div>
+      <a href="{{ url_for('attendance.history') }}" class="kpi-link">History <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-warning">
+      <div class="kpi-icon"><i class="bi bi-chat-dots-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ sms_today }}</div>
+        <div class="kpi-label">SMS Sent Today</div>
+      </div>
+      <a href="{{ url_for('attendance.sms_log') }}" class="kpi-link">View log <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts Row ────────────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+  <!-- 7-day Attendance Trend -->
+  <div class="col-lg-8">
+    <div class="card card-glass h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="card-title mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>7-Day Attendance Trend</h6>
+        <a href="{{ url_for('reports.daily') }}" class="btn btn-sm btn-outline-primary">Full Report</a>
+      </div>
+      <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Attendance Doughnut -->
+  <div class="col-lg-4">
+    <div class="card card-glass h-100">
+      <div class="card-header">
+        <h6 class="card-title mb-0"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Today's Breakdown</h6>
+      </div>
+      <div class="card-body d-flex flex-column align-items-center justify-content-center">
+        <canvas id="todayChart" width="200" height="200"></canvas>
+        <div class="chart-legend mt-3 d-flex gap-3">
+          <span class="legend-dot legend-present"></span><span>Present</span>
+          <span class="legend-dot legend-absent"></span><span>Absent</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick Actions + Recent SMS ────────────────────────────────────────── -->
+<div class="row g-4">
+  <!-- Quick Actions -->
+  <div class="col-lg-4">
+    <div class="card card-glass h-100">
+      <div class="card-header">
+        <h6 class="card-title mb-0"><i class="bi bi-lightning-fill me-2 text-warning"></i>Quick Actions</h6>
+      </div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('attendance.mark') }}" class="btn btn-primary btn-action">
+          <i class="bi bi-calendar-check me-2"></i>Mark Attendance
+        </a>
+        <a href="{{ url_for('students.add_student') }}" class="btn btn-success btn-action">
+          <i class="bi bi-person-plus me-2"></i>Add Student
+        </a>
+        <a href="{{ url_for('reports.daily') }}" class="btn btn-info btn-action text-white">
+          <i class="bi bi-file-earmark-bar-graph me-2"></i>Daily Report
+        </a>
+        <a href="{{ url_for('reports.export_excel') }}" class="btn btn-outline-success btn-action">
+          <i class="bi bi-file-earmark-excel me-2"></i>Export Excel
+        </a>
+        <a href="{{ url_for('reports.export_pdf') }}" class="btn btn-outline-danger btn-action">
+          <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent SMS Log -->
+  <div class="col-lg-8">
+    <div class="card card-glass h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="card-title mb-0"><i class="bi bi-envelope-fill me-2 text-info"></i>Recent SMS Alerts</h6>
+        <a href="{{ url_for('attendance.sms_log') }}" class="btn btn-sm btn-outline-info">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_sms %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-head-sm">
+              <tr>
+                <th>Student</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in recent_sms %}
+              <tr>
+                <td>
+                  <span class="fw-medium">{{ log.student.name }}</span>
+                </td>
+                <td class="text-muted small">{{ log.parent_phone }}</td>
+                <td>
+                  {% if log.delivery_status.value == 'Sent' %}
+                    <span class="badge bg-success">Sent</span>
+                  {% elif log.delivery_status.value == 'Failed' %}
+                    <span class="badge bg-danger">Failed</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted small">{{ log.sent_time.strftime('%d %b %H:%M') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="empty-state py-4">
+            <i class="bi bi-chat-square-dots"></i>
+            <p>No SMS alerts sent yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── 7-day trend chart ──────────────────────────────────────────────────────
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+  type: 'bar',
+  data: {
+    labels: {{ trend_labels | tojson }},
+    datasets: [
+      {
+        label: 'Present',
+        data: {{ trend_present | tojson }},
+        backgroundColor: 'rgba(34, 197, 94, 0.7)',
+        borderColor: 'rgb(34, 197, 94)',
+        borderWidth: 2,
+        borderRadius: 6,
+      },
+      {
+        label: 'Absent',
+        data: {{ trend_absent | tojson }},
+        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 2,
+        borderRadius: 6,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#94a3b8' } } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+      y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,0.1)' }, beginAtZero: true }
+    }
+  }
+});
+
+// ── Today's doughnut ───────────────────────────────────────────────────────
+const todayCtx = document.getElementById('todayChart').getContext('2d');
+const present = {{ present_today }};
+const absent  = {{ absent_today }};
+new Chart(todayCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Present', 'Absent'],
+    datasets: [{
+      data: present + absent > 0 ? [present, absent] : [1, 0],
+      backgroundColor: ['rgba(34,197,94,0.85)', 'rgba(239,68,68,0.85)'],
+      borderColor: ['#22c55e', '#ef4444'],
+      borderWidth: 2,
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    cutout: '72%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.parsed}`
+        }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}
