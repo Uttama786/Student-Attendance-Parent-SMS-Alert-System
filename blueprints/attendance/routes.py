@@ -15,36 +15,41 @@ from flask import (
 )
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, SelectField
-from wtforms.validators import DataRequired, Length
+from wtforms import StringField, DateField, SelectField, IntegerField
+from wtforms.validators import DataRequired, Length, NumberRange
 
 from extensions import db
-from models import Student, Attendance, SMSLog, AttendanceStatus
+from models import Student, Attendance, SMSLog, AttendanceStatus, Subject
 from blueprints.sms.service import send_absence_sms
 
 attendance_bp = Blueprint("attendance", __name__, template_folder="../../templates/attendance")
-
-SUBJECTS = [
-    "Mathematics", "Physics", "Chemistry", "English",
-    "Data Structures", "Algorithms", "Operating Systems",
-    "Database Management", "Computer Networks", "Software Engineering",
-    "Web Development", "Machine Learning", "Artificial Intelligence",
-    "Digital Electronics", "Microprocessors", "Other",
-]
-
 
 # ─────────────────────────────── Forms ───────────────────────────────────────
 
 class AttendanceForm(FlaskForm):
     subject = SelectField(
         "Subject",
-        choices=[("", "— Select Subject —")] + [(s, s) for s in SUBJECTS],
+        choices=[],
         validators=[DataRequired(message="Please select a subject")],
     )
     attendance_date = DateField(
         "Date",
         validators=[DataRequired()],
         default=date.today,
+    )
+
+
+class SubjectForm(FlaskForm):
+    name = StringField(
+        "Subject Name",
+        validators=[DataRequired(message="Subject name is required"), Length(max=120)],
+    )
+    semester = IntegerField(
+        "Semester",
+        validators=[
+            DataRequired(message="Semester is required"),
+            NumberRange(min=1, max=8, message="Semester must be between 1 and 8"),
+        ],
     )
 
 
@@ -59,10 +64,13 @@ def mark():
                    Absent students trigger an SMS to their parent.
     """
     form = AttendanceForm()
+    db_subjects = Subject.query.order_by(Subject.name).all()
+    form.subject.choices = [("", "— Select Subject —")] + [(s.name, s.name) for s in db_subjects]
 
     # On initial GET without query params, show the selector form
     subject = request.args.get("subject") or request.form.get("subject", "")
     date_str = request.args.get("date") or request.form.get("attendance_date", str(date.today()))
+    semester_str = request.args.get("semester") or request.form.get("semester", "")
 
     try:
         selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -73,7 +81,14 @@ def mark():
     existing_map = {}  # student_id -> AttendanceStatus
 
     if subject:
-        students = Student.query.order_by(Student.name).all()
+        # Load students (filtered by semester if specified)
+        q = Student.query
+        if semester_str:
+            try:
+                q = q.filter(Student.semester == int(semester_str))
+            except ValueError:
+                pass
+        students = q.order_by(Student.name).all()
 
         # Load already-marked entries for this subject/date
         existing = Attendance.query.filter_by(
@@ -134,16 +149,17 @@ def mark():
             f"{sms_count} SMS notification(s) sent successfully.",
             "success",
         )
-        return redirect(url_for("attendance.mark", subject=subject, date=date_str))
+        return redirect(url_for("attendance.mark", subject=subject, date=date_str, semester=semester_str))
 
     return render_template(
         "attendance/mark.html",
         title="Mark Attendance",
         form=form,
-        subjects=SUBJECTS,
+        subjects=db_subjects,
         students=students,
         selected_subject=subject,
         selected_date=selected_date,
+        selected_semester=semester_str,
         existing_map=existing_map,
         AttendanceStatus=AttendanceStatus,
     )
@@ -181,11 +197,13 @@ def history():
         page=page, per_page=20, error_out=False
     )
 
+    db_subjects = [s.name for s in Subject.query.order_by(Subject.name).all()]
+
     return render_template(
         "attendance/history.html",
         title="Attendance History",
         records=records,
-        subjects=SUBJECTS,
+        subjects=db_subjects,
         subject_filter=subject_filter,
         date_filter=date_filter,
         student_filter=student_filter,
@@ -209,3 +227,44 @@ def sms_log():
         title="SMS Log",
         logs=logs,
     )
+
+
+@attendance_bp.route("/subjects", methods=["GET", "POST"])
+@login_required
+def subjects_list():
+    """List and add subjects."""
+    form = SubjectForm()
+    if form.validate_on_submit():
+        name = form.name.data.strip().upper()
+        semester = form.semester.data
+
+        # Duplicate subject check
+        existing = Subject.query.filter_by(name=name).first()
+        if existing:
+            flash(f"Subject '{name}' already exists.", "danger")
+        else:
+            sub = Subject(name=name, semester=semester)
+            db.session.add(sub)
+            db.session.commit()
+            flash(f"Subject '{name}' added successfully for Semester {semester}.", "success")
+            return redirect(url_for("attendance.subjects_list"))
+
+    subjects = Subject.query.order_by(Subject.semester, Subject.name).all()
+    return render_template(
+        "attendance/subjects.html",
+        title="Subject Management",
+        subjects=subjects,
+        form=form,
+    )
+
+
+@attendance_bp.route("/subjects/<int:subject_id>/delete", methods=["POST"])
+@login_required
+def delete_subject(subject_id: int):
+    """Delete a subject."""
+    sub = Subject.query.get_or_404(subject_id)
+    name = sub.name
+    db.session.delete(sub)
+    db.session.commit()
+    flash(f"Subject '{name}' deleted.", "warning")
+    return redirect(url_for("attendance.subjects_list"))

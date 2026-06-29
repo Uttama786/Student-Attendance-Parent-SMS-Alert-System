@@ -76,6 +76,13 @@
         </a>
       </li>
       <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'attendance.subjects_list' %}active{% endif %}"
+           href="{{ url_for('attendance.subjects_list') }}">
+          <i class="bi bi-journal-bookmark-fill"></i>
+          <span>Subjects</span>
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link {% if request.endpoint == 'attendance.mark' %}active{% endif %}"
            href="{{ url_for('attendance.mark') }}">
           <i class="bi bi-calendar-check-fill"></i>

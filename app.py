@@ -44,6 +44,7 @@ def create_app(config_name: str = "default") -> Flask:
     with app.app_context():
         db.create_all()
         _seed_admin(app)
+        _seed_subjects(app)
 
     # ── Logging ───────────────────────────────────────────────────────────────
     logging.basicConfig(
@@ -73,6 +74,20 @@ def _seed_admin(app: Flask) -> None:
         app.logger.info(
             "Default admin created → username: %s", app.config["ADMIN_USERNAME"]
         )
+
+
+def _seed_subjects(app: Flask) -> None:
+    """
+    Creates default subjects (PYTHON for Sem 1, TOC for Sem 5)
+    on first run if no subject records exist.
+    """
+    from models import Subject
+
+    if Subject.query.count() == 0:
+        db.session.add(Subject(name="PYTHON", semester=1))
+        db.session.add(Subject(name="TOC", semester=5))
+        db.session.commit()
+        app.logger.info("Default subjects seeded (PYTHON -> Sem 1, TOC -> Sem 5)")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

@@ -93,10 +93,16 @@ def add_student():
     form = StudentForm()
 
     if form.validate_on_submit():
-        # Check for duplicate student ID
-        existing = Student.query.filter_by(student_id=form.student_id.data.strip()).first()
-        if existing:
-            flash(f"Student ID '{form.student_id.data}' already exists.", "danger")
+        # Check for duplicate student ID (USN)
+        existing_usn = Student.query.filter_by(student_id=form.student_id.data.strip()).first()
+        if existing_usn:
+            flash(f"Student ID (USN) '{form.student_id.data}' already exists.", "danger")
+            return render_template("students/form.html", form=form, title="Add Student", action="add")
+
+        # Check for duplicate parent phone number
+        existing_phone = Student.query.filter_by(parent_phone=form.parent_phone.data.strip()).first()
+        if existing_phone:
+            flash(f"Parent phone number '{form.parent_phone.data}' is already registered for student '{existing_phone.name}' ({existing_phone.student_id}).", "danger")
             return render_template("students/form.html", form=form, title="Add Student", action="add")
 
         student = Student(
@@ -128,6 +134,13 @@ def edit_student(student_id: int):
             existing = Student.query.filter_by(student_id=form.student_id.data.strip()).first()
             if existing:
                 flash(f"Student ID '{form.student_id.data}' already exists.", "danger")
+                return render_template("students/form.html", form=form, title="Edit Student", action="edit", student=student)
+
+        # Check duplicate phone only if changed
+        if form.parent_phone.data.strip() != student.parent_phone:
+            existing_phone = Student.query.filter_by(parent_phone=form.parent_phone.data.strip()).first()
+            if existing_phone:
+                flash(f"Parent phone number '{form.parent_phone.data}' is already registered for student '{existing_phone.name}' ({existing_phone.student_id}).", "danger")
                 return render_template("students/form.html", form=form, title="Edit Student", action="edit", student=student)
 
         student.student_id = form.student_id.data.strip()
@@ -207,6 +220,9 @@ def import_students():
         error_count = 0
         errors = []
 
+        seen_usns = set()
+        seen_phones = set()
+
         for row_num, row in enumerate(reader, start=2):
             student_id = (row.get("student_id") or "").strip()
             name = (row.get("name") or "").strip()
@@ -220,10 +236,29 @@ def import_students():
                 error_count += 1
                 continue
 
-            # Duplicate ID check
-            existing = Student.query.filter_by(student_id=student_id).first()
-            if existing:
-                errors.append(f"Row {row_num}: Student ID '{student_id}' already exists.")
+            # Duplicate ID check in CSV itself
+            if student_id in seen_usns:
+                errors.append(f"Row {row_num}: Duplicate Student ID '{student_id}' inside the uploaded CSV file.")
+                error_count += 1
+                continue
+
+            # Duplicate parent phone check in CSV itself
+            if p_phone in seen_phones:
+                errors.append(f"Row {row_num}: Duplicate parent phone number '{p_phone}' inside the uploaded CSV file.")
+                error_count += 1
+                continue
+
+            # Duplicate ID check in DB
+            existing_usn = Student.query.filter_by(student_id=student_id).first()
+            if existing_usn:
+                errors.append(f"Row {row_num}: Student ID '{student_id}' already exists in database.")
+                error_count += 1
+                continue
+
+            # Duplicate parent phone check in DB
+            existing_phone = Student.query.filter_by(parent_phone=p_phone).first()
+            if existing_phone:
+                errors.append(f"Row {row_num}: Parent phone number '{p_phone}' is already registered in database for student '{existing_phone.name}'.")
                 error_count += 1
                 continue
 
@@ -242,6 +277,10 @@ def import_students():
                 errors.append(f"Row {row_num}: Department '{dept}' is invalid.")
                 error_count += 1
                 continue
+
+            # Add to seen sets
+            seen_usns.add(student_id)
+            seen_phones.add(p_phone)
 
             # Add new student
             student = Student(

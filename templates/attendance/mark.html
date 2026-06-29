@@ -7,22 +7,36 @@
   <div class="card-header">
     <h6 class="card-title mb-0">
       <i class="bi bi-1-circle-fill me-2 text-primary"></i>
-      Select Subject & Date
+      Select Semester, Subject & Date
     </h6>
   </div>
   <div class="card-body">
     <form method="GET" action="{{ url_for('attendance.mark') }}" id="selectorForm">
       <div class="row g-3 align-items-end">
-        <div class="col-md-5">
+        <div class="col-md-3">
+          <label class="form-label required">Semester</label>
+          <select class="form-select" name="semester" id="semesterSelect" required>
+            <option value="">— Select Semester —</option>
+            <option value="1" {% if selected_semester == '1' %}selected{% endif %}>1st Sem</option>
+            <option value="2" {% if selected_semester == '2' %}selected{% endif %}>2nd Sem</option>
+            <option value="3" {% if selected_semester == '3' %}selected{% endif %}>3rd Sem</option>
+            <option value="4" {% if selected_semester == '4' %}selected{% endif %}>4th Sem</option>
+            <option value="5" {% if selected_semester == '5' %}selected{% endif %}>5th Sem</option>
+            <option value="6" {% if selected_semester == '6' %}selected{% endif %}>6th Sem</option>
+            <option value="7" {% if selected_semester == '7' %}selected{% endif %}>7th Sem</option>
+            <option value="8" {% if selected_semester == '8' %}selected{% endif %}>8th Sem</option>
+          </select>
+        </div>
+        <div class="col-md-3">
           <label class="form-label required">Subject</label>
-          <select class="form-select" name="subject" id="subjectSelect" required>
+          <select class="form-select" name="subject" id="subjectSelect" required data-selected="{{ selected_subject }}">
             <option value="">— Select Subject —</option>
             {% for s in subjects %}
-              <option value="{{ s }}" {% if selected_subject == s %}selected{% endif %}>{{ s }}</option>
+              <option value="{{ s.name }}" {% if selected_subject == s.name %}selected{% endif %}>{{ s.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label required">Date</label>
           <input type="date" class="form-control" name="date"
                  value="{{ selected_date.strftime('%Y-%m-%d') }}"
@@ -79,6 +93,7 @@
     {{ form.hidden_tag() }}
     <input type="hidden" name="subject" value="{{ selected_subject }}">
     <input type="hidden" name="attendance_date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+    <input type="hidden" name="semester" value="{{ selected_semester }}">
 
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -161,6 +176,64 @@
 
 {% block scripts %}
 <script>
+// Dynamic Semester/Subject Filter
+(function() {
+  const semesterSelect = document.getElementById('semesterSelect');
+  const subjectSelect = document.getElementById('subjectSelect');
+
+  if (semesterSelect && subjectSelect) {
+    const subjectsMap = {
+      {% for sem in range(1, 9) %}
+        '{{ sem }}': [
+          {% for s in subjects if s.semester == sem %}
+            "{{ s.name }}",
+          {% endfor %}
+        ],
+      {% endfor %}
+    };
+
+    function updateSubjects() {
+      const selectedSem = semesterSelect.value;
+      const currentSelectedSub = subjectSelect.getAttribute('data-selected') || subjectSelect.value;
+
+      // Reset subjects dropdown options
+      subjectSelect.innerHTML = '<option value="">— Select Subject —</option>';
+
+      if (selectedSem && subjectsMap[selectedSem]) {
+        subjectsMap[selectedSem].forEach(sub => {
+          const opt = document.createElement('option');
+          opt.value = sub;
+          opt.textContent = sub;
+          if (sub === currentSelectedSub) {
+            opt.selected = true;
+          }
+          subjectSelect.appendChild(opt);
+        });
+      } else {
+        // If no semester is selected, list all subjects
+        {% for s in subjects %}
+          const opt_{{ loop.index }} = document.createElement('option');
+          opt_{{ loop.index }}.value = "{{ s.name }}";
+          opt_{{ loop.index }}.textContent = "{{ s.name }}";
+          if ("{{ s.name }}" === currentSelectedSub) {
+            opt_{{ loop.index }}.selected = true;
+          }
+          subjectSelect.appendChild(opt_{{ loop.index }});
+        {% endfor %}
+      }
+    }
+
+    semesterSelect.addEventListener('change', () => {
+      // Clear data-selected when user manually changes semester
+      subjectSelect.removeAttribute('data-selected');
+      updateSubjects();
+    });
+
+    // Run on page load
+    updateSubjects();
+  }
+})();
+
 // Live present/absent counters
 function updateCounts() {
   let present = 0, absent = 0;

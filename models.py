@@ -138,6 +138,20 @@ class SMSLog(db.Model):
         return f"<SMSLog to={self.parent_phone} status={self.delivery_status.value}>"
 
 
+class Subject(db.Model):
+    """
+    Represents a subject in the system, mapped to a specific semester.
+    """
+    __tablename__ = "subjects"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    semester = db.Column(db.Integer, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<Subject {self.name} (Semester {self.semester})>"
+
+
 # ─────────────────────────── Flask-Login callback ────────────────────────────
 
 @login_manager.user_loader
